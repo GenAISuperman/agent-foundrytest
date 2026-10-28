@@ -60,9 +60,10 @@ def build_definition(
         environment_variables={
             "AZURE_AI_MODEL_DEPLOYMENT_NAME": model_deployment,
             "PYTHONNOUSERSITE": "1",
+            # Not AGENT_*/FOUNDRY_*: Foundry reserves those prefixes for the platform.
             # Changes on every workflow run, so a manual re-run of the same commit still
             # sends a different definition and Foundry records a new version.
-            "AGENT_DEPLOY_ID": deploy_id,
+            "DEPLOY_ID": deploy_id,
         },
     )
 
