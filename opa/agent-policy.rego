@@ -32,7 +32,7 @@ is_foundry if agent.runtime == "foundry"
 
 # --- all runtimes ---------------------------------------------------------
 
-# A {{PLACEHOLDER}} left anywhere in the file means provisioning did not finish.
+# An unreplaced double-brace placeholder anywhere in the file means provisioning did not finish.
 deny contains msg if {
 	walk(input, [path, value])
 	is_string(value)
