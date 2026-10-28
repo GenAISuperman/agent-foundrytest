@@ -1,23 +1,25 @@
 agent:
-  id: "foundrytest"
-  team: "doundryguy"
+  id: foundrytest
+  team: doundryguy
   runtime: foundry
-  interaction_model: "standalone"
-  guardrail_profile: "moderate"
-
+  interaction_model: standalone
+  guardrail_profile: moderate
 foundry:
-  project_endpoint: "https://aif-agenticdemo-poc.services.ai.azure.com/api/projects/proj-agenticdemo-poc"
-  model_deployment: "gpt-5.4"
-  agent_name: "foundrytest"
-
-tools: []
-
+  project_endpoint: https://aif-agenticdemo-poc.services.ai.azure.com/api/projects/proj-agenticdemo-poc
+  model_deployment: gpt-5.4
+  agent_name: foundrytest
+tools:
+  - id: testtool2
+    roles:
+      - testtool2.write
+      - testtool2.read
+    apim_base_url: https://apim-agenticdemo-poc.azure-api.net/tools/testtool2
+    scope: api://5b2a0022-6486-4ef5-84e3-d3ce725d7fb8/.default
 output_policy:
   violation_threshold: 5
   window_minutes: 1
   action: block
-  notify_webhook: 
-
+  notify_webhook: null
 prompts:
   active_version: v1.0
   source: prompts/system.txt
