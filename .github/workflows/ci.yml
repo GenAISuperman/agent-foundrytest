@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  # Pinned, and verified against the checksum OPA publishes for this release.
+  OPA_VERSION: v1.10.0
+  OPA_SHA256: bebbfc1652f544fae85d5dc3c5991a791d201cbe015be326f7076924832ffe83
+
+jobs:
+  # No is_template skip: this job also runs in the template repository itself, so the
+  # policy and the template code are tested where they are changed.
+  tests:
+    name: Policy and unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install OPA
+        run: |
+          curl -fsSL -o opa-bin \
+            "https://github.com/open-policy-agent/opa/releases/download/${OPA_VERSION}/opa_linux_amd64_static"
+          echo "${OPA_SHA256}  opa-bin" | sha256sum -c -
+          chmod +x opa-bin
+          sudo mv opa-bin /usr/local/bin/opa
+
+      - name: OPA policy tests
+        run: opa test opa/ -v
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: pytest
+        run: pytest
+
+  policy:
+    name: Policy check
+    if: ${{ !github.event.repository.is_template }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install OPA
+        run: |
+          curl -fsSL -o opa-bin \
+            "https://github.com/open-policy-agent/opa/releases/download/${OPA_VERSION}/opa_linux_amd64_static"
+          echo "${OPA_SHA256}  opa-bin" | sha256sum -c -
+          chmod +x opa-bin
+          sudo mv opa-bin /usr/local/bin/opa
+
+      - name: Validate agent.yaml with OPA
+        run: |
+          DENY=$(opa eval \
+            --data opa/ \
+            --input agent.yaml \
+            --format raw \
+            "data.agent.policy.deny")
+          echo "OPA deny results: $DENY"
+          if [ "$DENY" != "[]" ]; then
+            echo "OPA policy check failed"
+            exit 1
+          fi
+
+  build:
+    name: Image build
+    if: ${{ !github.event.repository.is_template }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Docker build
+        run: docker build --platform linux/amd64 -t agent-ci-test .

@@ -1,0 +1,97 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: "deploy-${{ github.repository }}"
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    if: ${{ !github.event.repository.is_template }}
+    runs-on: ubuntu-latest
+    env:
+      FOUNDRY_PROJECT_ENDPOINT: ${{ secrets.FOUNDRY_PROJECT_ENDPOINT }}
+      PORTAL_URL: ${{ secrets.PORTAL_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deploy dependencies
+        run: pip install -r deploy/requirements.txt
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Work out image name
+        id: image
+        env:
+          ACR_LOGIN_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
+        run: |
+          set -euo pipefail
+          AGENT_ID=$(python -c "import yaml; print(yaml.safe_load(open('agent.yaml'))['agent']['id'])")
+          DEPLOY_ID="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          {
+            echo "registry=${ACR_LOGIN_SERVER%%.*}"
+            echo "deploy_id=${DEPLOY_ID}"
+            echo "image=${ACR_LOGIN_SERVER}/agents/${AGENT_ID}:${GITHUB_SHA::12}-${DEPLOY_ID}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: ACR login
+        env:
+          REGISTRY: ${{ steps.image.outputs.registry }}
+        run: az acr login --name "$REGISTRY"
+
+      - name: Build and push image
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
+        run: |
+          docker build --platform linux/amd64 -t "$IMAGE" .
+          docker push "$IMAGE"
+
+      - name: Create agent version
+        id: version
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
+          DEPLOY_ID: ${{ steps.image.outputs.deploy_id }}
+        run: |
+          python -m deploy.create_agent_version \
+            --image "$IMAGE" \
+            --deploy-id "$DEPLOY_ID" \
+            --git-sha "$GITHUB_SHA"
+
+      - name: Read agent identity id
+        id: identity
+        env:
+          AGENT_NAME: ${{ steps.version.outputs.agent_name }}
+          AGENT_VERSION: ${{ steps.version.outputs.agent_version }}
+        run: |
+          set -euo pipefail
+          ID=$(python -m deploy.agent_identity \
+            --agent-name "$AGENT_NAME" \
+            --agent-version "$AGENT_VERSION")
+          echo "identity_id=${ID}" >> "$GITHUB_OUTPUT"
+
+      - name: Report agent identity to the portal
+        env:
+          AGENT_ID: ${{ steps.version.outputs.agent_id }}
+          IDENTITY_ID: ${{ steps.identity.outputs.identity_id }}
+        run: |
+          python -m deploy.report_identity \
+            --agent-id "$AGENT_ID" \
+            --identity-id "$IDENTITY_ID"

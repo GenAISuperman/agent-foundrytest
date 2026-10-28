@@ -1,0 +1,23 @@
+agent:
+  id: "{{AGENT_ID}}"
+  team: "{{TEAM_NAME}}"
+  runtime: foundry
+  interaction_model: "{{INTERACTION_MODEL}}"
+  guardrail_profile: "{{GUARDRAIL_PROFILE}}"
+
+foundry:
+  project_endpoint: "{{FOUNDRY_PROJECT_ENDPOINT}}"
+  model_deployment: "{{MODEL_DEPLOYMENT}}"
+  agent_name: "{{AGENT_ID}}"
+
+tools: []
+
+output_policy:
+  violation_threshold: {{VIOLATION_THRESHOLD}}
+  window_minutes: {{WINDOW_MINUTES}}
+  action: {{OUTPUT_ACTION}}
+  notify_webhook: {{NOTIFY_WEBHOOK}}
+
+prompts:
+  active_version: v1.0
+  source: prompts/system.txt
