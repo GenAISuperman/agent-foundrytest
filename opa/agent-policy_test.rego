@@ -44,13 +44,13 @@ test_valid_file_with_no_tools_passes if {
 }
 
 test_leftover_placeholder_is_denied if {
-	doc := object.union(valid, {"agent": {"team": "{{TEAM_NAME}}"}})
-	denied_with(doc, "placeholder not replaced: {{TEAM_NAME}}")
+	doc := object.union(valid, {"agent": {"team": "doundryguy"}})
+	denied_with(doc, "placeholder not replaced: doundryguy")
 }
 
 test_leftover_placeholder_in_foundry_block_is_denied if {
-	doc := object.union(valid, {"foundry": {"model_deployment": "{{MODEL_DEPLOYMENT}}"}})
-	denied_with(doc, "{{MODEL_DEPLOYMENT}}")
+	doc := object.union(valid, {"foundry": {"model_deployment": "gpt-5.4"}})
+	denied_with(doc, "gpt-5.4")
 }
 
 test_tool_missing_id_is_denied if {
